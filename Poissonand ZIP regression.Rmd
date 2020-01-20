@@ -1,0 +1,283 @@
+---
+title: "R Notebook"
+output: Poisson_Regression
+---
+
+  
+
+```{r}
+mydata <- read.csv(file="D:/Northwestern/MSDS410.2/Week 9/STRESS.csv",head=TRUE,sep=",")
+mydata <- data.frame(mydata)
+```
+
+1.   For the STRESS variable, make a histogram and obtain summary statistics.   Obtain a normal probability (Q-Q) plot for the STRESS variable.   Is STRESS a normally distributed variable?  What do you think is its most likely probability distribution for STRESS?  Give a justification for the distribution you selected.
+
+```{r}
+library(ggplot2)
+ggplot(mydata, aes(x=STRESS)) + 
+geom_histogram(color="blue", fill="light blue", binwidth=1)+
+scale_x_continuous(breaks = seq(0, 9, by = 1))
+
+mean(mydata$STRESS)
+var(mydata$STRESS)
+
+
+summary(mydata$STRESS)
+library(lessR)
+SummaryStats(mydata)
+
+ggplot() + geom_qq(aes(sample = rnorm(mydata$STRESS))) + geom_qq_line(aes(sample = rnorm(mydata$STRESS)))
+
+```
+2.   Fit an OLS regression model to predict STRESS (Y) using COHES, ESTEEM, GRADES, SATTACH as explanatory variables (X).   Obtain the typical diagnostic information and graphs.  Discuss how well this model fits.  Obtain predicted values (Y_hat) and plot them in a histogram.  What issues do you see?
+
+```{r}
+Model1 <- lm(data=mydata, STRESS~COHES + ESTEEM + GRADES + SATTACH)
+Model1
+summary(Model1)
+anova(Model1)
+par(mfrow=c(2,2))
+plot(Model1)
+
+mydata$model1.prediction <- fitted(Model1)
+
+
+library(ggplot2)
+ggplot(mydata, aes(x=model1.prediction)) + 
+geom_histogram(color="blue", fill="light blue", binwidth=1)+
+scale_x_continuous(breaks = seq(0, 9, by = 1))
+```
+3.  Create a transformed variable on Y that is LN(Y).   Fit an OLS regression model to predict LN(Y) using COHES, ESTEEM, GRADES, SATTACH as explanatory variables (X).   Obtain the typical diagnostic information and graphs.  Discuss how well this model fits.  Obtain predicted values (LN(Y)_hat) and plot them in a histogram.  What issues do you see?  Does this correct the issue? 
+
+```{r}
+
+
+mydata$log.STRESS <- log(mydata$STRESS)
+summary(mydata$log.STRESS)
+table(mydata$log.STRESS)
+
+log.data<-mydata[!(mydata$log.STRESS<0),]
+
+Model2 <- lm(data=log.data, log.STRESS ~ COHES + ESTEEM + GRADES + SATTACH)
+Model2
+summary(Model2)
+anova(Model2)
+par(mfrow=c(2,2))
+plot(Model2)
+
+log.data$Model2.pred <- predict(Model2, newdata = log.data , type="response")
+log.data$Model2.exp <- exp(log.data$Model2.pred)
+
+library(ggplot2)
+ggplot(log.data, aes(x=Model2.exp)) + 
+geom_histogram(color="blue", fill="light blue", binwidth=1)
+
+```
+4.  Use the glm() function to fit a Poisson Regression for STRESS (Y) using COHES, ESTEEM, GRADES, SATTACH as explanatory variables (X).   Interpret the model's coefficients and discuss how this model's results compare to your answer for part 3).  Similarly, fit an over-dispersed Poisson regression model using the same set of variables.   How do these models compare?
+
+```{r}
+Model3 <- glm(data = mydata, STRESS ~ COHES + ESTEEM + GRADES+ SATTACH, family = poisson) 
+Model3
+summary(Model3)
+anova(Model3)
+par(mfrow=c(2,2))
+plot(Model3)
+
+pvalue <- 1-pchisq((Model3$null.deviance-Model3$deviance),(Model3$df.null-Model3$df.residual))
+pvalue
+
+fit <- Model3$deviance/Model3$df.residual # close to one means good fit
+fit
+
+mydata$Model3.fit <- fitted(Model3)
+
+
+library(ggplot2)
+ggplot(mydata, aes(x=Model3.fit)) + 
+geom_histogram(color="blue", fill="light blue", binwidth=1)
+
+Model4 <- glm(data = mydata, STRESS ~ COHES + ESTEEM + GRADES+ SATTACH, family = quasipoisson)
+Model4
+summary(Model4)
+anova(Model4)
+par(mfrow=c(2,2))
+plot(Model4)
+
+pvalue <- 1-pchisq((Model4$null.deviance-Model4$deviance),(Model4$df.null-Model4$df.residual))
+pvalue
+
+fit <- Model4$deviance/Model4$df.residual # close to one means good fit
+fit
+```
+5.  Based on the Poisson model in part 4), compute the predicted count of STRESS for those whose levels of family cohesion are less than one standard deviation below the mean (call this the low group), between one standard deviation below and one standard deviation above the mean (call this the middle group), and more than one standard deviation above the mean (high).   What is the expected percent difference in the number of stressful events for those at high and low levels of family cohesion?
+
+```{r}
+mydata$Model3.pred <- predict(Model3, newdata = mydata , type="response")
+Model3.mean <- mean(mydata$Model3.pred)
+Model3.sd <- sd(mydata$Model3.pred)
+
+mean(mydata$COHES)
+sd(mydata$COHES)
+
+Model3.mean
+Model3.sd
+
+mydata$LMH <- ifelse(mydata$COHES<mean(mydata$COHES)-sd(mydata$COHES),"LOW", ifelse(mydata$COHES>=mean(mydata$COHES)-sd(mydata$COHES)&mydata$COHES<=mean(mydata$COHES)+sd(mydata$COHES),"MIDDLE","HIGH"))
+
+mean(mydata[mydata$LMH=="HIGH","STRESS"])
+mean(mydata[mydata$LMH=="LOW","STRESS"])
+mean(mydata[mydata$LMH=="MIDDLE","STRESS"])
+
+table(mydata$LMH)
+
+2.45283/1.191919
+2.45283-1.191919
+2.057883*1.191919
+
+write.csv(mydata,"D:/Northwestern/MSDS410.2/Week 9/mydata.csv")
+
+```
+6.  Compute the AICs and BICs from the Poisson Regression and the over-dispersed Poisson regression models from part 4).   Is one better than the other?
+
+```{r}
+AIC(Model3)
+BIC(Model3)
+
+AIC(Model4)
+BIC(Model4)
+```
+7.   Using the Poisson regression model from part 4), plot the deviance residuals by the predicted values.  Discuss what this plot indicates about the regression model.
+
+```{r}
+library(lessR)
+mydata$Model3.prediction <- fitted(Model3)
+min(mydata$Model3.prediction)
+max(mydata$Model3.prediction)
+
+mydata$Model3.residuals <- mydata$STRESS - mydata$Model3.prediction
+
+accuracy(mydata$Model3.prediction, x=mydata$STRESS)
+
+library(ggplot2)
+ggplot(mydata, aes(x=Model3.prediction,y= Model3.residuals))+
+  geom_point(col="dark green", fill="green")+
+  ggtitle("Scatter Plot of residuals given stress level")+
+  xlab("Model3.prediction")+
+  ylab("residuals (Actual - Predicted)")+
+  scale_x_discrete(limits=c(0,1,2,3,4,5,6,7,8,9))+
+  scale_y_discrete(limits=c(-5,0,5,10))
+
+library(ggplot2)
+ggplot(mydata, aes(x=Model3.residuals)) + 
+geom_histogram(color="blue", fill="light blue", binwidth=1)+
+scale_x_continuous(breaks = seq(-5, 9, by = 1))
+
+
+```
+8.   Create a new indicator variable (Y_IND) of STRESS that takes on a value of 0 if STRESS=0 and 1 if STRESS>0.   This variable essentially measures is stress present, yes or no.   Fit a logistic regression model to predict Y_IND using the variables using COHES, ESTEEM, GRADES, SATTACH as explanatory variables (X).  Report the model, interpret the coefficients, obtain statistical information on goodness of fit, and discuss how well this model fits.  Should you rerun the logistic regression analysis?  If so, what should you do next?
+
+```{r}
+mydata$Y_IND <- ifelse(mydata$STRESS > 0, 1,0)
+Model5 <- glm(data= mydata, Y_IND ~ COHES + ESTEEM + GRADES + SATTACH, family = binomial)
+
+Model5
+summary(Model5)
+anova(Model5)
+par(mfrow=c(2,2))
+plot(Model5)
+
+AIC(Model5)
+BIC(Model5)
+accuracy(Model5)
+
+confint(Model5)
+exp(coef(Model5))
+exp(cbind(OR=coef(Model5),confint(Model5)))
+mydata$Model5.pred <- predict(Model5, newdata = mydata, type="response")
+mydata$Model5.pred.round <- round(mydata$Model5.pred,0)
+cm <- xtabs(~Y_IND + Model5.pred.round, data=mydata)
+cm
+accuracy <- sum(diag(cm))/sum(cm)
+accuracy
+```
+9.  It may be that there are two (or more) process at work that are overlapped and generating the distributions of STRESS(Y).   What do you think those processes might be?  To conduct a ZIP regression model by hand, fit a Logistic Regression model to predict if stress is present (Y_IND), and then use a Poisson Regression model to predict the number of stressful events (STRESS) conditioning on stress being present.  Is it reasonable to use such a model?   Combine the two fitted model to predict STRESS (Y).  Obtained predicted values and residuals.  How well does this model fit? Note: It is Logistic Regression First to predict (0=nothing, 1=something where counts are 1 or more).    Then Poisson Regression for number of counts.   It is not a simple as plug and chug.  If you use the counts variable for the Poisson Regression model, there are all the 0's in there that are causing the problem. So, the Poisson Regression part has to be conditional on counts being 1 or more.   You will have to select those records (i.e. conditioning) then fit the Poisson Model.
+```{r}
+library(lessR)
+mydata$y_hat <- fitted(Model5)
+mydata$y_hat.round <- round(mydata$y_hat,0)
+mydata$ZIP.setup <- ifelse(mydata$y_hat.round==1,mydata$STRESS, NA)
+Model.ZIP <- glm(data = mydata, ZIP.setup ~ COHES + ESTEEM + GRADES + SATTACH, family = poisson)
+
+summary(Model.ZIP)
+anova(Model.ZIP)
+pvalue <- 1-pchisq((Model.ZIP$null.deviance-Model.ZIP$deviance),(Model.ZIP$df.null-Model.ZIP$df.residual))
+pvalue
+
+fit <- Model.ZIP$deviance/Model.ZIP$df.residual # close to one means good fit
+fit
+
+
+mydata$finalprediction <- ifelse(mydata$y_hat.round==0, 0, fitted(Model.ZIP))
+mydata$residuals <- mydata$STRESS - mydata$finalprediction
+plot(mydata$residuals)
+mean(mydata$residuals)
+mydata$percent.error <- mydata$STRESS/mydata$finalprediction
+mean(mydata$percent.error)
+
+max(mydata$residuals)
+min(mydata$residuals)
+max(mydata$STRESS)
+min(mydata$STRESS)
+max(mydata$finalprediction)
+min(mydata$finalprediction)
+
+library(ggplot2)
+ggplot(mydata, aes(x=STRESS,y= residuals))+
+  geom_point(col="dark green", fill="green")+
+  ggtitle("Scatter Plot of residuals given stress level")+
+  xlab("STRESS")+
+  ylab("residuals (Actual - Predicted)")+
+  scale_x_discrete(limits=c(0,1,2,3,4,5,6,7,8,9))+
+  scale_y_discrete(limits=c(-5,0,5,10))
+
+library(ggplot2)
+ggplot(mydata, aes(x=STRESS,y= finalprediction))+
+  geom_point(col="dark green", fill="green")+
+  ggtitle("Scatter Plot of final prediction given actual stress level")+
+  xlab("STRESS")+
+  ylab("finalprediction")+
+  scale_x_discrete(limits=c(0,1,2,3,4,5,6,7,8,9))+
+  scale_y_discrete(limits=c(0,1,2,3,4,5,6,7,8,9))
+
+library(ggplot2)
+ggplot(mydata, aes(x=residuals)) + 
+geom_histogram(color="blue", fill="light blue", binwidth=1)
+
+accuracy(mydata$finalprediction, x=mydata$STRESS)
+
+```
+
+10.  Use the pscl package and the zeroinfl() function to Fit a ZIP model to predict STRESS(Y).   You should do this twice, first using the same predictor variable for both parts of the ZIP model.   Second, finding the best fitting model.   Report the results and goodness of fit measures.    Synthesize your findings across all of these models, to reflect on what you think would be a good modeling approach for this data.
+
+```{r}
+library(pscl)
+
+Model6 <- zeroinfl(STRESS ~ COHES + ESTEEM + GRADES + SATTACH, dist ="poisson", data = mydata, EM=TRUE)
+summary(Model6)
+
+mydata$y_hat6 <- fitted(Model6)
+Histogram(data=mydata,y_hat6)
+accuracy(mydata$y_hat6, x=mydata$STRESS)
+
+#######################################################
+
+Model7 <- zeroinfl(STRESS ~ COHES + ESTEEM + GRADES | COHES, dist ="poisson", data = mydata, EM=TRUE)
+summary(Model7)
+
+mydata$y_hat7 <- fitted(Model7)
+Histogram(data=mydata,y_hat7)
+accuracy(mydata$y_hat7, x=mydata$STRESS)
+
+
+```
+
