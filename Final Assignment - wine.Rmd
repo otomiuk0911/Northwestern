@@ -1,0 +1,264 @@
+---
+title: "R Notebook"
+output: Final_Assignment
+---
+
+Import Data
+```{r}
+wine <- data.frame(wine)
+mydata <- data.frame(wine)
+wine1 <- na.omit(wine) #remove NAs
+for(i in 1:ncol(wine)){
+  wine[is.na(wine[,i]), i] <- mean(wine[,i], na.rm = TRUE)} #use average for NAs
+
+
+```
+change stars to dummy variables
+```{r}
+mydata$STARS2 <- ifelse(mydata$STARS==2,1,0)
+mydata$STARS3 <- ifelse(mydata$STARS==3,1,0)
+mydata$STARS4 <- ifelse(mydata$STARS==4,1,0)
+
+wine <- data.frame(mydata)
+
+i1 <- wine$AcidIndex * wine$STARS2
+i2 <- wine$AcidIndex * wine$STARS3
+i3 <- wine$AcidIndex * wine$STARS4
+
+i4 <- wine$Alcohol * wine$STARS2
+i5 <- wine$Alcohol * wine$STARS3
+i6 <- wine$Alcohol * wine$STARS4
+
+interaction1 <- glm(Cases ~ AcidIndex + STARS2 + STARS3 + STARS4, family = poisson, data = wine)
+interaction1.1 <- glm(Cases ~ AcidIndex + STARS2 + STARS3 + STARS4 + i1+ i2+ i3, family = poisson, data = wine)
+pvalue <- 1 - pchisq((interaction1$deviance-interaction1.1$deviance),(interaction1$residual-interaction1.1$residual))
+pvalue
+
+```
+
+
+
+```{r}
+library(ggplot2) 
+ggplot(wine, aes(x=Cases)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of Cases") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+
+library(ggplot2)
+ggplot(wine, aes(x=FixedAcidity)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of FixedAcidity") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=VolatileAcidity)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of VolatileAcidity") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=CitricAcid)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of CitricAcid") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=ResidualSugar)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of ResidualSugar") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=Chlorides)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of Chlorides") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=FreeSulfurDioxide)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of FreeSulfurDioxide") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=TotalSulfurDioxide)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of TotalSulfurDioxide") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=Density)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of Density") +
+
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+ 
+
+library(ggplot2)
+ggplot(wine, aes(x=pH)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of pH") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=Sulphates)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of Sulphates") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+library(ggplot2)
+ggplot(wine, aes(x=Alcohol)) +
+  geom_histogram(color="black") +
+  labs(title="Distribution of Alcohol") +
+  theme(plot.title=element_text(lineheight=0.8, face="bold", hjust=0.5))
+
+```
+Check for NAs
+```{r}
+summary(wine)
+summary(wine1)
+```
+CorrelationMatrix
+```{r}
+#Correlation Matrix
+
+continuous <- wine[,c(3,4,5,6,7, 8, 9,10,11,12, 13, 14, 15,16,17 )]
+M <- cor(na.omit(continuous))
+library(ggcorrplot)
+ggcorrplot(M)
+ggcorrplot(M, lab = TRUE, lab_size =2.75)
+library(corrplot)
+corrplot(M)
+
+```
+
+Test Train SPlit
+```{r}
+### TEST/TRAIN SPLIT 70/30
+
+# Set the seed on the random number generator so you get the same split every time that you run the code.
+set.seed(123)
+wine$u <- runif(n=dim(wine)[1],min=0,max=1);
+
+# Create train/test split;
+train.df <- subset(wine, u<0.70);
+test.df  <- subset(wine, u>=0.70);
+
+# Check your data split. The sum of the parts should equal the whole.
+# Do your totals add up?
+dim(wine)[1]
+dim(train.df)[1]
+dim(test.df)[1]
+dim(train.df)[1]+dim(test.df)[1]
+
+#Automated Variable Selection
+
+#Trick 1 create DF with only variables desired 
+Train.clean <- train.df[,c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)]
+Train.clean <- na.omit(Train.clean)
+
+test.clean <- test.df[,c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)]
+test.clean <- na.omit(test.clean)
+
+#Trick 2 specify the upper model and lower models using these R shortcuts.
+
+# Define the upper model as the FULL model
+
+
+
+
+library(pscl)
+
+upper.ZIP <- zeroinfl(Cases ~ STARS + FixedAcidity + VolatileAcidity +CitricAcid + ResidualSugar + Chlorides + FreeSulfurDioxide + TotalSulfurDioxide + TotalSulfurDioxide + Density + pH + Sulphates + Alcohol + LabelAppeal + AcidIndex ,data=Train.clean, dist ="poisson", EM=TRUE);
+summary(upper.ZIP)
+
+# Define the lower model as the Intercept model
+lower.ZIP <- zeroinfl(Cases ~ 1,data=Train.clean,dist ="poisson", EM=TRUE);
+summary(lower.ZIP)
+
+# Need a SLR to initialize stepwise selection
+Final.ZIP <- zeroinfl(Cases ~ STARS,data=Train.clean, dist ="poisson", EM=TRUE);
+summary(Final.ZIP)
+
+
+###Trick #3: use the R function formula() to pass your shortcut definition of the Full Model to the scope argument in stepAIC().
+
+# Note: There is only one function for classical model selection in R - stepAIC();
+# stepAIC() is part of the MASS library.
+# The MASS library comes with the BASE R distribution, but you still need to load it;
+
+library(MASS)
+
+# Call stepAIC() for variable selection
+forward.ZIP <- stepAIC(object=lower.ZIP,scope=list(upper=formula(upper.ZIP),lower=~1),
+                      direction=c('forward'));
+summary(forward.ZIP)
+
+par(mfrow=c(2,2))
+plot(forward.ZIP)
+
+backward.ZIP <- stepAIC(object=upper.ZIP,direction=c('backward'));
+summary(backward.ZIP)
+
+stepwise.ZIP <- stepAIC(object=Final.ZIP,scope=list(upper=formula(upper.ZIP),lower=~1),
+                       direction=c('both'));
+summary(stepwise.ZIP)
+
+
+
+```
+
+
+Create the test final models
+
+```{r}
+
+library(pscl)
+
+###using data without adjusting for NAs
+
+Final.test1 <- zeroinfl(Cases ~ STARS + LabelAppeal + AcidIndex +  Alcohol |STARS + LabelAppeal + AcidIndex +  Alcohol + FreeSulfurDioxide + Sulphates, dist ="poisson", data = Train.clean, EM=TRUE)
+summary(Final.test1)
+
+Train.clean$test1 <- fitted(Final.test1)
+accuracy(Train.clean$test1, x=Train.clean$Cases)
+
+###Test Coefficients
+logistic.clean<- glm(Purchase ~ STARS + LabelAppeal + AcidIndex +  Alcohol + FreeSulfurDioxide + Sulphates, family=binomial, data= Train.clean)
+
+poisson.clean <- glm(Cases ~ STARS + LabelAppeal + AcidIndex +  Alcohol + FreeSulfurDioxide + Sulphates, family=binomial, data= Train.clean)
+
+test.clean$test1 <- predict(Final.test1,newdata=test.clean)
+accuracy(test.clean$test1, x=test.clean$Cases)
+
+test.clean$round.test1 <- round(predict(Final.test1,newdata=test.clean),0)
+accuracy(test.clean$round.test1, x=test.clean$Cases)
+
+str(forward.test)
+
+###using data with mean for NAs
+
+Final.test2 <- zeroinfl(Cases ~ STARS + LabelAppeal + AcidIndex +  Alcohol |STARS + LabelAppeal + AcidIndex + TotalSulfurDioxide + VolatileAcidity + FreeSulfurDioxide + Sulphates + pH + Chlorides, dist ="poisson", data = Train.clean, EM=TRUE)
+summary(Final.test2)
+
+Train.clean$test2 <- fitted(Final.test2)
+accuracy(Train.clean$test2, x=Train.clean$Cases)
+
+###Test Coefficients
+logistic.clean<- glm(Purchase ~ STARS + LabelAppeal + AcidIndex +  Alcohol + FreeSulfurDioxide + Sulphates, family=binomial, data= Train.clean)
+
+poisson.clean <- glm(Cases ~ STARS + LabelAppeal + AcidIndex +  Alcohol + FreeSulfurDioxide + Sulphates, family=binomial, data= Train.clean)
+
+test.clean$test2 <- predict(Final.test2,newdata=test.clean)
+accuracy(test.clean$test2, x=test.clean$Cases)
+
+test.clean$round.test2 <- round(predict(Final.test2,newdata=test.clean),0)
+accuracy(test.clean$round.test2, x=test.clean$Cases)
+
+str(forward.test)
+
+
+```
