@@ -1,0 +1,370 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Import Data
+
+```{r}
+mydata <- read.csv(file="D:/Northwestern/MSDS410.2/Week 8/RELIGION.csv",head=TRUE,sep=",")
+religion <- data.frame(mydata)
+str(religion)
+
+```
+
+
+
+
+1.   For the 2x2 table, determine the odds and the probabilities of texting while driving among males and females.  Then compute the odds ratio of texting while driving that compares males to females.  (5 points)
+
+```{r}
+male.yes <- 30
+male.no <- 10
+female.yes <- 34
+female.no <- 6
+
+#male odds of texting while driving
+male.odds <- male.yes/male.no
+
+#female odds of texting while driving
+female.odds <- female.yes/female.no
+
+#Male probability of texting while driving
+male.prob <- male.yes/(male.yes+male.no)
+
+#female probability of texting while driving
+female.prob <- female.yes/(female.yes+female.no)
+
+#odds ratio of texting while driving that compares males to females
+odds.ratio <- (male.yes*female.no)/(male.no*female.yes)
+
+```
+
+a. Compute the overall odds and probability of attending a religious school, assuming this data is from a random sample.
+
+```{r}
+RS.table <- table(religion$RELSCHOL)
+RS.table
+
+prop.table(RS.table) # cell percentages
+prop.table(RS.table, 1) # row percentages
+prop.table(RS.table, 2) # column percentages
+
+RS.odds <- 80/546
+RS.odds
+
+RS.prob <- 80/(546+80)
+RS.prob
+
+```
+
+b. Cross-tabulate RELSCHOL with RACE (coded:  0=non-white, 1=white).  What are the probabilities that non-white students and white students attend religious schools?  What are the odds that white students and non-white students attend religious schools?  What is the odds ratio that compares white and non-white students?
+
+```{r}
+
+# 2-Way Cross Tabulation
+library(gmodels)
+CrossTable(religion$RELSCHOL, religion$RACE)
+help(CrossTable)
+
+xtabs(data=religion, ~RELSCHOL + RACE)
+mytable<- table(religion$RELSCHOL, religion$RACE)
+mytable
+prop.table(mytable)
+
+(26+54)/(26+54+76+470) #probability white and non-white
+54/(54+470) #prob whites go to religious school
+26/(26+76) #prob non-whites go to religious school
+
+(26+54)/(76+470) #odds white and non-white
+54/470 #odds whites go to religious school
+26/(76) #odds non-whites go to religious school
+(54*76)/(26*470) #odds ratio that compares whites and non-whites
+
+
+```
+Plot RELSCHOL (Y) by INCOME as a scatterplot.  The INCOME variable is actually an ordinal variable that is associated with income brackets.  This is an old dataset, so for example, INCOME=4 ??? $20,000-$29,999.   Is there a value of INCOME that seems to separate or discriminate between those attending religious schools and those that don???t?   Create a variable that dichotomizes INCOME based on this value you observed.  Call this new variable D_INCOME.  Cross-tabulate RELSCHOL with D_INCOME.  What are the probabilities that low income students and higher students attend religious schools?  What are the odds that lower income students and higher income students attend religious schools?  What is the odds ratio that compares lower and higher income students?  
+
+```{r}
+plot(y=religion$RELSCHOL, x=religion$INCOME)
+
+mytable1 <-table(religion$RELSCHOL, religion$INCOME)
+mytable1
+prop.table(mytable1,1) # cell percentages
+plot(prop.table(mytable1,2))
+
+mytable2 <-table(religion$INCOME, religion$RELSCHOL)
+mytable2
+prop.table(mytable2,1) # cell percentages
+plot(prop.table(mytable2,2))
+
+religion$D_INCOME <- ifelse(religion$INCOME >3, 1, 0)
+table(religion$RELSCHOL, religion$D_INCOME)
+xtabs(data=religion, ~RELSCHOL + D_INCOME)
+
+6/(6+131) #prob low income students attend religious schools
+70/(70+383) #prob high income students attend religious schools
+6/131 #odds low income students attend religious schools
+70/383 #odds high income students attend religious schools
+
+
+
+
+odds.ratio <- (6*383)/(131*70) #odds ratio that compares lower and higher income students
+odds.ratio
+
+library(lessR)
+ANOVA(data=religion, INCOME ~ RELSCHOL)
+ttest(data=religion, RELSCHOL ~ INCOME)
+
+
+```
+
+Plot RELSCHOL (Y) by ATTEND as a scatterplot.  The ATTEND variable is the number of times the survey respondent attends a service during a month.  Cross-tabulate RELSCHOL with ATTEND.  Are the proportion profiles the same for those attending religious school versus not, across the values of the ATTEND variable?  Is there a value of ATTEND that seems to separate or discriminate between those attending religious schools and those that don???t?   Save this value for later.
+
+```{r}
+plot(y=religion$RELSCHOL, x=religion$ATTEND)
+
+mytable3 <-table(religion$RELSCHOL, religion$ATTEND)
+mytable3
+prop.table(mytable3,1) # cell percentages
+plot(prop.table(mytable3,2))
+
+mytable4 <-table(religion$ATTEND, religion$RELSCHOL)
+mytable4
+prop.table(mytable4,1) # cell percentages
+prop.table(mytable4,2) # cell percentages
+plot(prop.table(mytable4,2))
+
+xtabs(data=religion, ~RELSCHOL + ATTEND)
+mytable<- table(religion$RELSCHOL, religion$ATTEND)
+mytable
+prop.table(mytable)
+Histogram(mytable)
+
+
+
+```
+3.   First, fit a logistic model to predict RELSCHOL (Y) using only the RACE (X) variable.  Call this Model 1.   Report the logistic regression model and interpret the parameter estimates for Model 1.  Report the AIC and BIC values for Model 1.    (3 points)
+
+```{r}
+Model1 <- Logit(RELSCHOL ~ RACE, family = binomial, data=religion)
+Model1
+anova(Model1)
+summary(Model1)
+
+
+Model1 <- glm(RELSCHOL ~ RACE, family = binomial, data=religion)
+Model1
+anova(Model1)
+summary(Model1)
+AIC(Model1)
+BIC(Model1)
+confint(Model1)
+exp(coef(Model1))
+exp(cbind(OR=coef(Model1),confint(Model1)))
+religion$Model1.pred <- predict(Model1, newdata = religion, type="response")
+religion$Model1.pred.round <- round(religion$model1.pred,0)
+cm <- xtabs(~RELSCHOL + Model1.pred.round, data=religion)
+cm
+accuracy <- sum(diag(cm))/sum(cm)
+accuracy
+
+library(gmodels)
+CrossTable(religion$model1.pred.round, religion$RELSCHOL,digits=1,prop.r=F, prop.t=F, prop.chisq=F, format="SPSS")
+
+intercept <- -1.072637
+b1 <- -1.091112
+
+#prediction for whites
+exp(intercept+b1*1)/(1+exp(intercept+b1*1))
+
+#prediction for nonwhites
+exp(intercept+b1*0)/(1+exp(intercept+b1*0))
+
+#odds ratio
+exp(-1.091112)
+
+```
+4.  Next, fit a logistic model to predict RELSCHOL (Y) using only the INCOME(X) variable.   Call this Model 2.   For Model 2, do the following:  (6 points)
+a.	Report the logistic regression model and interpret the parameter estimates for Model 2.  Report the AIC and BIC values for Model 2.   How do these compare to Model 1?
+b)  	Use the logit predictive equation for Model 2 to compute PI for each record.   Plot PI (Y) by INCOME(X).   At what value of X, does the value of PI exceed 0.50?   How does this value compare to your visual estimate from problem 2c)?   
+
+```{r}
+Model2 <- glm(RELSCHOL ~ INCOME, family = binomial, data=religion)
+Model2
+anova(Model2)
+summary(Model2)
+plot(Model2)
+AIC(Model2)
+BIC(Model2)
+
+confint(Model2)
+exp(coef(Model2))
+exp(cbind(OR=coef(Model2),confint(Model2)))
+religion$Model2.pred <- predict(Model2, newdata = religion, type="response")
+religion$Model2.pred.round <- round(religion$Model2.pred,0)
+cm <- xtabs(~RELSCHOL + Model2.pred.round, data=religion)
+cm
+accuracy <- sum(diag(cm))/sum(cm)
+accuracy
+
+library(gmodels)
+CrossTable(religion$model2.pred.round, religion$RELSCHOL,digits=1,prop.r=F, prop.t=F, prop.chisq=F, format="SPSS")
+
+intercept <- -2.82110
+b1 <- 0.16228
+
+#prediction for Income 1
+exp(intercept+b1*1)/(1+exp(intercept+b1*1))
+
+#prediction for Income 2
+exp(intercept+b1*2)/(1+exp(intercept+b1*2))
+
+#prediction for Income 3
+exp(intercept+b1*3)/(1+exp(intercept+b1*3))
+
+#prediction for Income 4
+exp(intercept+b1*4)/(1+exp(intercept+b1*4))
+
+#prediction for Income 5
+exp(intercept+b1*5)/(1+exp(intercept+b1*5))
+
+#prediction for Income 6
+exp(intercept+b1*6)/(1+exp(intercept+b1*6))
+
+#prediction for Income 7
+exp(intercept+b1*7)/(1+exp(intercept+b1*7))
+
+#prediction for Income 8
+exp(intercept+b1*8)/(1+exp(intercept+b1*8))
+
+#prediction for Income 9
+exp(intercept+b1*9)/(1+exp(intercept+b1*9))
+
+#prediction for Income 10
+exp(intercept+b1*10)/(1+exp(intercept+b1*10))
+
+#prediction for Income 11
+exp(intercept+b1*11)/(1+exp(intercept+b1*11))
+
+#prediction for Income 12
+exp(intercept+b1*12)/(1+exp(intercept+b1*12))
+
+#odds ratio
+exp(0.16228)
+
+library(ggplot2)
+
+ggplot(religion, aes(x=INCOME,y= Model2.pred))+
+  geom_point(col="dark green", fill="green")+
+  ggtitle("Scatter Plot of RELSCHOL prediction given INCOME")+
+  xlab("INCOME")+
+  ylab("Model2.pred")+
+  xlim(0, 12)+
+  ylim(0, 1)+
+  scale_x_discrete(limits=c(1,2,3,4,5,6,7,8,9,10,11,12))
+  
+
+```
+
+5.  Next, fit a logistic model to predict RELSCHOL (Y) using only the ATTEND(X) variable.   Call this Model 3.   For Model 3, do the following:  (6 points)
+
+```{r}
+Model3 <- glm(RELSCHOL ~ ATTEND, family = binomial, data=religion)
+Model3
+anova(Model3)
+summary(Model3)
+plot(Model3)
+AIC(Model3)
+BIC(Model3)
+
+confint(Model3)
+exp(coef(Model3))
+exp(cbind(OR=coef(Model3),confint(Model3)))
+religion$Model3.pred <- predict(Model3, newdata = religion, type="response")
+religion$Model3.pred.round <- round(religion$Model3.pred,0)
+cm <- xtabs(~RELSCHOL + Model3.pred.round, data=religion)
+cm
+accuracy <- sum(diag(cm))/sum(cm)
+accuracy
+
+library(gmodels)
+CrossTable(religion$model3.pred.round, religion$RELSCHOL,digits=1,prop.r=F, prop.t=F, prop.chisq=F, format="SPSS")
+
+intercept <- -2.9727
+b1 <- 0.2269 
+
+#prediction for ATTEND1
+exp(intercept+b1*1)/(1+exp(intercept+b1*1))
+
+#prediction for ATTEND2
+exp(intercept+b1*2)/(1+exp(intercept+b1*2))
+
+#prediction for ATTEND3
+exp(intercept+b1*3)/(1+exp(intercept+b1*3))
+
+#prediction for ATTEND4
+exp(intercept+b1*4)/(1+exp(intercept+b1*4))
+
+#prediction for ATTEND5
+exp(intercept+b1*5)/(1+exp(intercept+b1*5))
+
+#prediction for ATTEND6
+exp(intercept+b1*6)/(1+exp(intercept+b1*6))
+
+
+#odds ratio
+exp(0.16228)
+
+library(ggplot2)
+
+ggplot(religion, aes(x=ATTEND,y= Model3.pred))+
+  geom_point(col="dark green", fill="green")+
+  ggtitle("Scatter Plot of RELSCHOL prediction given ATTEND")+
+  xlab("INCOME")+
+  ylab("Model3.pred")+
+  xlim(0, 12)+
+  ylim(0, 1)+
+  scale_x_discrete(limits=c(1,2,3,4,5,6,7,8,9,10,11,12))
+  
+
+```
+
+6.  Finally, fit a logistic model to predict RELSCHOL (Y) using RACE, INCOME and ATTEND as explanatory (X) variables.  Please consider INCOME and ATTEND to be continuous variables.  Call this Model 4.   For Model 4, do the following:  (9 points)
+```{r}
+Model4 <- glm(RELSCHOL ~ RACE + INCOME + ATTEND, family = binomial, data=religion)
+Model4
+anova(Model4)
+summary(Model4)
+plot(Model4)
+AIC(Model4)
+BIC(Model4)
+
+confint(Model4)
+exp(coef(Model4))
+exp(cbind(OR=coef(Model4),confint(Model4)))
+religion$Model4.pred <- predict(Model4, newdata = religion, type="response")
+religion$Model4.pred.round <- round(religion$Model4.pred,0)
+cm <- xtabs(~RELSCHOL + Model4.pred.round, data=religion)
+cm
+accuracy <- sum(diag(cm))/sum(cm)
+accuracy
+
+intercept <- -3.58314
+b1 <- -1.28931 
+b2 <- 0.20068
+b3 <- 0.33164
+
+#prediction for Whites with income level 4 who attend 5 religious services per month
+exp(intercept+b1*1+b2*4+b3*5)/(1+exp(intercept+b1*1+b2*4+b3*5))
+
+4/45
+
+#prediction for non-Whites with income level 4 who attend 5 religious services per month
+exp(intercept+b1*0+b2*4+b3*5)/(1+exp(intercept+b1*0+b2*4+b3*5))
+
+#OR white vs non-white
+exp(-1.28931)
+```
+
